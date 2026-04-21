@@ -32,21 +32,22 @@
     </div>
 
     <script>
-        // --- ส่วนที่ต้องแก้ไข ---
-        const SB_URL = 'https://pfobzathluoivoufkdwj.supabase.co'
-        const SB_KEY = 'sb_publishable_q3xJiQ7LRJGkVMVkKbxrsA_A6eFhTaC'
-        // ---------------------
+    // 1. ตั้งค่าการเชื่อมต่อ (ใช้ชื่อ supabaseClient เพื่อไม่ให้ซ้ำกับ Library)
+    const SB_URL = 'https://pfobzathluoivoufkdwj.supabase.co'
+    const SB_KEY = 'sb_publishable_q3xJiQ7LRJGkVMVkKbxrsA_A6eFhTaC'
+    
+    // ใช้คำสั่งนี้สร้างตัวเชื่อมต่อ
+    const supabaseClient = supabase.createClient(SB_URL, SB_KEY)
 
-        const supabase = supabase.createClient(SB_URL, SB_KEY)
-
-        // ฟังก์ชันโหลดข้อมูล
-        async function loadProfiles() {
-            const { data, error } = await supabase
+    // 2. ฟังก์ชันโหลดข้อมูลมาแสดง
+    async function loadProfiles() {
+        try {
+            const { data, error } = await supabaseClient
                 .from('profiles')
                 .select('*')
                 .order('created_at', { ascending: false })
 
-            if (error) return console.error(error)
+            if (error) throw error
 
             const container = document.getElementById('listDisplay')
             container.innerHTML = data.map(item => `
@@ -58,54 +59,57 @@
                     </div>
                 </div>
             `).join('')
+        } catch (err) {
+            console.error('Error loading profiles:', err.message)
         }
+    }
 
-        // ฟังก์ชันบันทึกข้อมูล
-        async function saveData() {
-            const name = document.getElementById('nameInput').value
-            const file = document.getElementById('fileInput').files[0]
-            const btn = document.getElementById('btnSave')
+    // 3. ฟังก์ชันบันทึกข้อมูล (saveData)
+    async function saveData() {
+        const name = document.getElementById('nameInput').value
+        const file = document.getElementById('fileInput').files[0]
+        const btn = document.getElementById('btnSave')
 
-            if (!name || !file) return alert('กรุณาใส่ชื่อและเลือกรูปภาพ')
+        if (!name || !file) return alert('กรุณาใส่ชื่อและเลือกรูปภาพ')
 
-            btn.disabled = true
-            btn.textContent = 'กำลังประมวลผล...'
+        btn.disabled = true
+        btn.textContent = 'กำลังบันทึก...'
 
-            try {
-                // 1. อัพโหลดรูปไป Storage
-                const fileName = `img_${Date.now()}.png`
-                const { data: upData, error: upError } = await supabase.storage
-                    .from('avatars')
-                    .upload(fileName, file)
+        try {
+            // A. อัพโหลดรูปไป Storage Bucket ชื่อ 'avatars'
+            const fileName = `img_${Date.now()}.png`
+            const { data: upData, error: upError } = await supabaseClient.storage
+                .from('avatars')
+                .upload(fileName, file)
 
-                if (upError) throw upError
+            if (upError) throw upError
 
-                // 2. รับ URL รูป
-                const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName)
-                const imageUrl = urlData.publicUrl
+            // B. รับ Public URL ของรูป
+            const { data: urlData } = supabaseClient.storage.from('avatars').getPublicUrl(fileName)
+            const imageUrl = urlData.publicUrl
 
-                // 3. บันทึกลงตาราง
-                const { error: insError } = await supabase
-                    .from('profiles')
-                    .insert([{ name, image_url: imageUrl }])
+            // C. บันทึกลงตาราง 'profiles'
+            const { error: insError } = await supabaseClient
+                .from('profiles')
+                .insert([{ name: name, image_url: imageUrl }])
 
-                if (insError) throw insError
+            if (insError) throw insError
 
-                alert('บันทึกเรียบร้อย!')
-                document.getElementById('nameInput').value = ''
-                document.getElementById('fileInput').value = ''
-                loadProfiles()
+            alert('บันทึกเรียบร้อย!')
+            document.getElementById('nameInput').value = ''
+            document.getElementById('fileInput').value = ''
+            loadProfiles() // โหลดรายการใหม่
 
-            } catch (err) {
-                alert('เกิดข้อผิดพลาด: ' + err.message)
-            } finally {
-                btn.disabled = false
-                btn.textContent = 'บันทึกข้อมูล'
-            }
+        } catch (err) {
+            alert('เกิดข้อผิดพลาด: ' + err.message)
+        } finally {
+            btn.disabled = false
+            btn.textContent = 'บันทึกข้อมูล'
         }
+    }
 
-        // โหลดข้อมูลทันทีเมื่อเปิดหน้า
-        loadProfiles()
-    </script>
+    // เรียกโหลดข้อมูลทันทีที่เปิดหน้าเว็บ
+    loadProfiles()
+</script>
 </body>
 </html>
