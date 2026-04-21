@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รายชื่อและรูปภาพ - Supabase</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <div class="max-w-2xl mx-auto py-10 px-4">
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-10">
+            <h2 class="text-xl font-bold mb-4 text-slate-800">เพิ่มรายชื่อใหม่</h2>
+            <div class="flex flex-col gap-4">
+                <input type="text" id="nameInput" placeholder="ชื่อ-นามสกุล" 
+                    class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-2 focus:ring-blue-500 outline-none">
+                
+                <input type="file" id="fileInput" accept="image/*" 
+                    class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                
+                <button onclick="saveData()" id="btnSave" 
+                    class="bg-blue-600 text-white font-semibold py-2.5 rounded-lg hover:bg-blue-700 transition shadow-md disabled:bg-slate-400">
+                    บันทึกข้อมูล
+                </button>
+            </div>
+        </div>
+
+        <h2 class="text-lg font-bold mb-4 text-slate-700">รายชื่อในระบบ</h2>
+        <div id="listDisplay" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            </div>
+    </div>
+
+    <script>
+        // --- ส่วนที่ต้องแก้ไข ---
+        const SB_URL = 'https://pfobzathluoivoufkdwj.supabase.co'
+        const SB_KEY = 'sb_publishable_q3xJiQ7LRJGkVMVkKbxrsA_A6eFhTaC'
+        // ---------------------
+
+        const supabase = supabase.createClient(SB_URL, SB_KEY)
+
+        // ฟังก์ชันโหลดข้อมูล
+        async function loadProfiles() {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .order('created_at', { ascending: false })
+
+            if (error) return console.error(error)
+
+            const container = document.getElementById('listDisplay')
+            container.innerHTML = data.map(item => `
+                <div class="bg-white p-3 rounded-lg border border-slate-200 flex items-center gap-4 shadow-sm">
+                    <img src="${item.image_url}" class="w-14 h-14 rounded-full object-cover bg-slate-100">
+                    <div>
+                        <p class="font-bold text-slate-800">${item.name}</p>
+                        <p class="text-xs text-slate-500">${new Date(item.created_at).toLocaleDateString('th-TH')}</p>
+                    </div>
+                </div>
+            `).join('')
+        }
+
+        // ฟังก์ชันบันทึกข้อมูล
+        async function saveData() {
+            const name = document.getElementById('nameInput').value
+            const file = document.getElementById('fileInput').files[0]
+            const btn = document.getElementById('btnSave')
+
+            if (!name || !file) return alert('กรุณาใส่ชื่อและเลือกรูปภาพ')
+
+            btn.disabled = true
+            btn.textContent = 'กำลังประมวลผล...'
+
+            try {
+                // 1. อัพโหลดรูปไป Storage
+                const fileName = `img_${Date.now()}.png`
+                const { data: upData, error: upError } = await supabase.storage
+                    .from('avatars')
+                    .upload(fileName, file)
+
+                if (upError) throw upError
+
+                // 2. รับ URL รูป
+                const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(fileName)
+                const imageUrl = urlData.publicUrl
+
+                // 3. บันทึกลงตาราง
+                const { error: insError } = await supabase
+                    .from('profiles')
+                    .insert([{ name, image_url: imageUrl }])
+
+                if (insError) throw insError
+
+                alert('บันทึกเรียบร้อย!')
+                document.getElementById('nameInput').value = ''
+                document.getElementById('fileInput').value = ''
+                loadProfiles()
+
+            } catch (err) {
+                alert('เกิดข้อผิดพลาด: ' + err.message)
+            } finally {
+                btn.disabled = false
+                btn.textContent = 'บันทึกข้อมูล'
+            }
+        }
+
+        // โหลดข้อมูลทันทีเมื่อเปิดหน้า
+        loadProfiles()
+    </script>
+</body>
+</html>
