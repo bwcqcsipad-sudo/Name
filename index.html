@@ -3,57 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>รายชื่อระบบ ID ลำดับ & เวลาไทย</title>
+    <title>ระบบบันทึกรายชื่อ (ID ลำดับ & เวลาสั้น)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Sarabun', sans-serif; }</style>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+    </style>
 </head>
-<body class="bg-slate-100 min-h-screen p-4">
+<body class="bg-slate-50 min-h-screen p-4">
 
     <div class="max-w-md mx-auto">
-        <div class="bg-white p-6 rounded-2xl shadow-lg border border-slate-200 mb-8">
-            <h2 class="text-xl font-bold mb-5 text-slate-800 flex items-center">
-                <span class="bg-blue-600 w-2 h-6 rounded-full mr-3"></span>
-                เพิ่มรายชื่อใหม่
-            </h2>
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 mb-6">
+            <h2 class="text-xl font-bold mb-6 text-slate-800">เพิ่มข้อมูลใหม่</h2>
             <div class="space-y-4">
-                <input type="text" id="nameInput" placeholder="ชื่อ-นามสกุล" 
-                    class="w-full border border-slate-300 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">ชื่อ-นามสกุล</label>
+                    <input type="text" id="nameInput" placeholder="ระบุชื่อที่นี่..." 
+                        class="w-full border border-slate-300 rounded-2xl p-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+                </div>
                 
-                <input type="file" id="fileInput" accept="image/*" 
-                    class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-1">รูปโปรไฟล์</label>
+                    <input type="file" id="fileInput" accept="image/*" 
+                        class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                </div>
                 
                 <button onclick="saveData()" id="btnSave" 
-                    class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 transition shadow-lg active:scale-95 disabled:bg-slate-400">
+                    class="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-700 transition shadow-md active:scale-95 disabled:bg-slate-400">
                     บันทึกข้อมูล
                 </button>
             </div>
         </div>
 
-        <h2 class="text-lg font-bold mb-4 text-slate-700 flex justify-between items-center">
-            รายชื่อในระบบ 
-            <span id="count" class="text-sm font-normal bg-slate-200 px-3 py-1 rounded-full">0 รายการ</span>
-        </h2>
+        <div class="flex items-center justify-between mb-4 px-2">
+            <h2 class="text-lg font-bold text-slate-700">รายชื่อทั้งหมด</h2>
+            <span id="count" class="text-xs font-bold bg-slate-200 text-slate-600 px-3 py-1 rounded-full">0 รายการ</span>
+        </div>
+
         <div id="listDisplay" class="space-y-3">
             </div>
     </div>
 
     <script>
-        // --- ส่วนการตั้งค่า (ใส่ค่าของคุณที่นี่) ---
+        // --- ส่วนที่ต้องแก้ไข: ใส่ค่าของคุณจากหน้าจอ Settings ---
         const SB_URL = 'https://pfobzathluoivoufkdwj.supabase.co'
         const SB_KEY = 'sb_publishable_q3xJiQ7LRJGkVMVkKbxrsA_A6eFhTaC'
-        // ----------------------------------
+        // ---------------------------------------------
 
         const supabaseClient = supabase.createClient(SB_URL, SB_KEY)
 
-        // 1. ฟังก์ชันโหลดข้อมูลมาแสดง
+        // 1. ฟังก์ชันดึงข้อมูลมาแสดง (โหลดข้อมูลทันทีที่เปิดหน้า)
         async function loadProfiles() {
             try {
                 const { data, error } = await supabaseClient
                     .from('profiles')
                     .select('*')
-                    .order('id', { ascending: true }) // เรียงตาม ID 1, 2, 3
+                    .order('id', { ascending: true }) // เรียงตามเลข ID 1, 2, 3...
 
                 if (error) throw error
 
@@ -61,79 +68,74 @@
                 const container = document.getElementById('listDisplay')
                 
                 container.innerHTML = data.map(item => {
-                    // ปรับแต่งเวลาเป็นรูปแบบไทย
-                    const thaiTime = new Date(item.created_at).toLocaleString('th-TH', {
-                        timeZone: 'Asia/Bangkok',
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    })
+                    // ปรับแต่งเวลาให้เหลือแค่ YYYY-MM-DD HH:mm:ss ตามความต้องการ
+                    // โดยการตัดตัวอักษรส่วนเกิน และเปลี่ยน T เป็นช่องว่าง
+                    const cleanTime = item.created_at ? item.created_at.replace('T', ' ').substring(0, 19) : '-';
 
                     return `
-                        <div class="bg-white p-4 rounded-xl border border-slate-200 flex items-center gap-4 shadow-sm hover:shadow-md transition">
-                            <div class="bg-blue-100 text-blue-700 font-bold w-8 h-8 rounded-full flex items-center justify-center text-sm shrink-0">
+                        <div class="bg-white p-4 rounded-2xl border border-slate-200 flex items-center gap-4 shadow-sm">
+                            <div class="bg-blue-50 text-blue-600 font-bold w-10 h-10 rounded-xl flex items-center justify-center text-sm shrink-0 border border-blue-100">
                                 ${item.id}
                             </div>
-                            <img src="${item.image_url}" class="w-12 h-12 rounded-full object-cover bg-slate-100 border border-slate-100">
-                            <div class="overflow-hidden">
+                            <img src="${item.image_url}" class="w-14 h-14 rounded-full object-cover bg-slate-100 shadow-inner">
+                            <div class="flex-1 min-w-0">
                                 <p class="font-bold text-slate-800 truncate">${item.name}</p>
-                                <p class="text-[11px] text-slate-400 italic">${thaiTime}</p>
+                                <p class="text-[12px] text-slate-400 font-mono mt-1">${cleanTime}</p>
                             </div>
                         </div>
                     `
                 }).join('')
             } catch (err) {
-                console.error('Error:', err.message)
+                console.error('Fetch error:', err.message)
             }
         }
 
-        // 2. ฟังก์ชันบันทึกข้อมูล
+        // 2. ฟังก์ชันอัปโหลดรูปภาพและบันทึกชื่อลงฐานข้อมูล
         async function saveData() {
             const name = document.getElementById('nameInput').value
             const file = document.getElementById('fileInput').files[0]
             const btn = document.getElementById('btnSave')
 
-            if (!name || !file) return alert('กรุณากรอกชื่อและเลือกรูปภาพ')
+            if (!name || !file) return alert('กรุณาระบุชื่อและเลือกไฟล์รูปภาพ')
 
             btn.disabled = true
-            btn.textContent = 'กำลังบันทึก...'
+            btn.textContent = 'กำลังบันทึกข้อมูล...'
 
             try {
-                // A. อัพโหลดรูป
-                const fileName = `user_${Date.now()}.png`
-                const { data: upData, error: upError } = await supabaseClient.storage
+                // ขั้นตอน A: อัปโหลดรูปภาพไปยัง Storage Bucket ชื่อ 'avatars'
+                const fileName = `img_${Date.now()}.png`
+                const { data: storageData, error: storageErr } = await supabaseClient.storage
                     .from('avatars')
                     .upload(fileName, file)
 
-                if (upError) throw upError
+                if (storageErr) throw storageErr
 
-                // B. รับ URL
+                // ขั้นตอน B: ดึง Public URL ของรูปที่อัปโหลดสำเร็จ
                 const { data: urlData } = supabaseClient.storage.from('avatars').getPublicUrl(fileName)
-                const imageUrl = urlData.publicUrl
+                const publicImageUrl = urlData.publicUrl
 
-                // C. บันทึกลงตาราง (ID และ เวลา จะถูกเจนอัตโนมัติที่หลังบ้าน)
-                const { error: insError } = await supabaseClient
+                // ขั้นตอน C: บันทึกชื่อและ URL รูปลงในตาราง 'profiles'
+                const { error: insertErr } = await supabaseClient
                     .from('profiles')
-                    .insert([{ name: name, image_url: imageUrl }])
+                    .insert([{ name: name, image_url: publicImageUrl }])
 
-                if (insError) throw insError
+                if (insertErr) throw insertErr
 
-                // ล้างค่าฟอร์มและโหลดใหม่
+                // เมื่อสำเร็จ: ล้างค่าในฟอร์มและโหลดข้อมูลใหม่
+                alert('บันทึกข้อมูลสำเร็จ!')
                 document.getElementById('nameInput').value = ''
                 document.getElementById('fileInput').value = ''
                 loadProfiles()
-                
+
             } catch (err) {
-                alert('เกิดข้อผิดพลาด: ' + err.message)
+                alert('ข้อผิดพลาด: ' + err.message)
             } finally {
                 btn.disabled = false
                 btn.textContent = 'บันทึกข้อมูล'
             }
         }
 
-        // โหลดข้อมูลทันทีเมื่อเปิดหน้า
+        // เริ่มต้นโหลดข้อมูลเมื่อหน้าจอพร้อม
         loadProfiles()
     </script>
 </body>
